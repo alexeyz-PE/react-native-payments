@@ -154,19 +154,8 @@ RCT_EXPORT_METHOD(handleDetailsUpdate: (NSDictionary *)details
 {
     // Store completion for later use
     self.completion = completion;
-    
-    if (self.hasGatewayParameters) {
-        [self.gatewayManager createTokenWithPayment:payment completion:^(NSString * _Nullable token, NSError * _Nullable error) {
-            if (error) {
-                [self handleGatewayError:error];
-                return;
-            }
-            
-            [self handleUserAccept:payment paymentToken:token];
-        }];
-    } else {
-        [self handleUserAccept:payment paymentToken:nil];
-    }
+
+	[self handleUserAccept:payment];
 }
 
 
@@ -338,21 +327,14 @@ RCT_EXPORT_METHOD(handleDetailsUpdate: (NSDictionary *)details
 }
 
 - (void)handleUserAccept:(PKPayment *_Nonnull)payment
-            paymentToken:(NSString *_Nullable)token
 {
-    NSString *transactionId = payment.token.transactionIdentifier;
-    NSString *paymentData = [[NSString alloc] initWithData:payment.token.paymentData encoding:NSUTF8StringEncoding];
-    NSMutableDictionary *paymentResponse = [[NSMutableDictionary alloc]initWithCapacity:3];
-    [paymentResponse setObject:transactionId forKey:@"transactionIdentifier"];
-    [paymentResponse setObject:paymentData forKey:@"paymentData"];
-    
-    if (token) {
-        [paymentResponse setObject:token forKey:@"paymentToken"];
-    }
-    
-    [self.bridge.eventDispatcher sendDeviceEventWithName:@"NativePayments:onuseraccept"
-                                                    body:paymentResponse
-     ];
+	NSString *cryptogram = [PKPaymentConverter convertToString:payment];
+
+	[self.bridge.eventDispatcher sendDeviceEventWithName:@"NativePayments:onuseraccept"
+													body:@{
+														   @"paymentData": cryptogram
+														   }
+	 ];
 }
 
 - (void)handleGatewayError:(NSError *_Nonnull)error
